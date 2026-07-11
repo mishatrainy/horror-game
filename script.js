@@ -1,6 +1,6 @@
 let gameState = {
     player: { lvl: 1, hp: 100, maxHp: 100, mp: 50, maxMp: 50, inventory: [], hasShield: false },
-    monster: { name: "Мутировавший Монстр", hp: 150, maxHp: 150 }, // ХП снижено до 150 для баланса!
+    monster: { name: "Мутировавший Монстр", hp: 130, maxHp: 130 }, // ХП снижено до 150 для баланса!
     currentScene: "start"
 };
 
