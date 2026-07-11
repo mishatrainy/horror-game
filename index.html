@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Dumpling Dungeon: REAL GRAPHICS 🩸</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background-color: #000;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* ЗАДНИЙ ФОН НА ВЕСЬ ЭКРАН */
+        .game-screen {
+            position: relative; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: space-between;
+            box-sizing: border-box; padding: 20px;
+            background-size: cover !important;
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+            transition: background 0.6s ease-in-out;
+        }
+
+        /* Атмосферное хоррор-затемнение */
+        .game-screen::before {
+            content: ""; position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.4); z-index: 1;
+            pointer-events: none;
+        }
+
+        /* HUD */
+        .hud {
+            position: relative; z-index: 10;
+            display: flex; justify-content: space-between;
+            width: 100%; max-width: 800px; margin: 0 auto;
+            background: rgba(15, 5, 5, 0.9);
+            border: 2px solid #540606; padding: 12px 20px; border-radius: 6px;
+        }
+        .stat-group { width: 45%; color: #d1c7c7; font-size: 14px; }
+        .bar-bg { background: #2b0c0c; width: 100%; height: 10px; border-radius: 2px; margin-top: 5px; overflow: hidden; }
+        .bar-fill-hp { background: #b80404; height: 100%; width: 100%; transition: width 0.3s; box-shadow: 0 0 8px #ff0000; }
+        .bar-fill-mp { background: #0462b8; height: 100%; width: 100%; transition: width 0.3s; box-shadow: 0 0 8px #00c3ff; }
+
+        /* НАСТОЯЩИЙ СЛОЙ КАРТИНКИ ПЕРСОНАЖА ПОЦЕНТРУ */
+        .character-overlay {
+            position: absolute; top: 45%; left: 50%;
+            transform: translate(-50%, -50%); z-index: 5;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            pointer-events: none; transition: all 0.3s ease;
+            width: 100%; max-width: 400px; height: 350px;
+        }
+        .character-overlay img {
+            width: 100%; height: 100%; object-fit: contain;
+            animation: breathe 2.5s ease-in-out infinite;
+        }
+        .monster-label {
+            background: rgba(138, 7, 7, 0.8); color: #fff;
+            padding: 4px 12px; font-size: 14px; margin-top: 15px;
+            border-radius: 3px; border: 1px solid #ff0000; letter-spacing: 2px;
+            position: absolute; bottom: -30px;
+        }
+
+        /* НИЖНЕЕ ОКНО ДИАЛОГОВ */
+        .dialog-box {
+            position: relative; z-index: 10;
+            width: 100%; max-width: 850px; margin: 0 auto 10px auto;
+            background: rgba(8, 4, 4, 0.95); border: 2px solid #6b0404;
+            border-radius: 8px; padding: 20px; box-sizing: border-box;
+            box-shadow: 0 -5px 25px rgba(0, 0, 0, 0.9);
+            display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 20px;
+        }
+        .text-side { display: flex; flex-direction: column; justify-content: space-between; }
+        .story-text { font-size: 15px; line-height: 1.5; color: #e0d5d5; min-height: 100px; }
+        .inventory { font-size: 12px; color: #8c7e7e; border-top: 1px dashed #3a1515; padding-top: 8px; margin-top: 10px; }
+        .buttons-side { display: flex; flex-direction: column; gap: 10px; justify-content: center; }
+        
+        button {
+            background: #210404; color: #d1c7c7; border: 1px solid #6b0404;
+            padding: 11px 15px; font-size: 13px; font-family: inherit;
+            cursor: pointer; border-radius: 4px; text-align: left; transition: all 0.2s;
+        }
+        button:hover:not(:disabled) { background: #520404; color: #fff; box-shadow: 0 0 10px #ff0000; transform: translateX(3px); }
+        button:disabled { color: #443333; border-color: #221111; background: #0a0505; cursor: not-allowed; }
+        .system-log { font-size: 12px; color: #cf8415; font-style: italic; margin-top: 5px; min-height: 15px; }
+
+        @keyframes breathe {
+            0% { transform: scale(1); filter: drop-shadow(0 0 10px #ff0000); }
+            50% { transform: scale(1.04); filter: drop-shadow(0 0 25px #ff0000); }
+            100% { transform: scale(1); filter: drop-shadow(0 0 10px #ff0000); }
+        }
+
+        .flash-blood { animation: bloodFx 0.3s ease-in-out; }
+        @keyframes bloodFx {
+            0% { filter: brightness(1); }
+            50% { filter: brightness(1.6) sepia(0.5) hue-rotate(-30deg); }
+            100% { filter: brightness(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="screen" class="game-screen">
+        
+        <!-- HUD -->
+        <div class="hud">
+            <div class="stat-group">
+                <span id="player-lvl">LVL: 1</span> | ❤️ HP: <span id="hp-text">100/100</span>
+                <div class="bar-bg"><div id="hp-bar" class="bar-fill-hp"></div></div>
+            </div>
+            <div class="stat-group">
+                ⚡ MP: <span id="mp-text">50/50</span>
+                <div class="bar-bg"><div id="mp-bar" class="bar-fill-mp"></div></div>
+            </div>
+        </div>
+
+        <!-- СЛОЙ С КАРТИНКОЙ МОНСТРА/ФИНАЛА -->
+        <div id="character-layer" class="character-overlay">
+            <img id="monster-img" src="" alt="Визуал">
+            <div id="monster-tag" class="monster-label">БОСС: DUMPLING</div>
+        </div>
+
+        <!-- ОКНО ДИАЛОГОВ -->
+        <div class="dialog-box">
+            <div class="text-side">
+                <div id="story-box" class="story-text"></div>
+                <div>
+                    <div id="log-box" class="system-log"></div>
+                    <div id="inv-box" class="inventory">🎒 Рюкзак: Пусто</div>
+                </div>
+            </div>
+            <div id="btn-box" class="buttons-side"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
