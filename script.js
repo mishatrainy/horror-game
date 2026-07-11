@@ -1,6 +1,6 @@
 let gameState = {
     player: { lvl: 1, hp: 100, maxHp: 100, mp: 50, maxMp: 50, inventory: [], hasShield: false },
-    monster: { name: "Мутировавший Монстр", hp: 130, maxHp: 130 }, // ХП снижено до 130 для баланса!
+    monster: { name: "Мутировавший Монстр", hp: 150, maxHp: 150 },
     currentScene: "start"
 };
 
@@ -10,7 +10,7 @@ const scenes = {
         bg: "url('start.jpg')", overlay: "", showOverlay: false,
         options: [
             { text: "⚔️ Взять волшебный Меч и пойти вперед", action: () => takeItem("Волшебный меч", "forest_choice") },
-            { text: "🏃 Тсс.. Забрать со стены Плащ скрытности и сбежать", action: () => takeItem("Плащ скрытности", "forest_choice") }
+            { text: "🏃 Тсс.. Забрать со стены Плащ скрытности и сбежать (+20 к Макс. Мане)", action: () => takeMagicMantle() }
         ]
     },
     forest_choice: {
@@ -42,9 +42,9 @@ const scenes = {
         bg: "", overlay: "monster.jpg", showOverlay: true,
         options: [
             { text: "🗣️ Сказать кодовое слово: 'Defendo!' (Магический Щит)", action: () => checkPassword(), condition: () => !gameState.player.hasShield },
-            { text: "⚔️ Атаковать мечом (Нужен Волшебный Меч)", action: () => attackMonster(), condition: () => hasItem("Волшебный меч") },
+            { text: "⚔️ Атаковать мечом (Нужен Волшебный Меч | 10% промах)", action: () => attackMonster(), condition: () => hasItem("Волшебный меч") },
             { text: "👊 Использовать обычную атаку (Мало урона без меча)", action: () => punchMonster(), condition: () => !hasItem("Волшебный меч") },
-            { text: "🔮 Заклинание 'Огненный Шар' (20 MP | Огромный урон)", action: () => castMagic(), condition: () => gameState.player.mp >= 20 },
+            { text: "🔮 Заклинание 'Огненный Шар' (20 MP | 20% промах)", action: () => castMagic(), condition: () => gameState.player.mp >= 20 },
             { text: "🩹 Использовать Эликсир Жизни (Восстановит 40 HP)", action: () => usePotion(), condition: () => hasItem("Эликсир жизни") },
             { text: "🏆 Выпить Святой Грааль (Полное исцеление HP и MP!)", action: () => useGrail(), condition: () => hasItem("Святой Грааль") }
         ]
@@ -132,6 +132,14 @@ function takeItem(itemName, nextScene) {
     updateUI(`Вы получили: ${itemName}`);
 }
 
+function takeMagicMantle() {
+    gameState.player.inventory.push("Плащ скрытности");
+    gameState.player.maxMp += 20;
+    gameState.player.mp = gameState.player.maxMp;
+    changeScene("forest_choice");
+    updateUI("Вы выбрали Путь Мага! Максимальная мана увеличена до 70 MP!");
+}
+
 function hasItem(itemName) {
     return gameState.player.inventory.includes(itemName);
 }
@@ -166,7 +174,7 @@ function searchChest() {
 function collectMana() {
     gameState.player.maxMp += 25;
     gameState.player.mp = gameState.player.maxMp;
-    scenes.battle.text = `📜 Прекрасно! Твой максимальный запас маны увеличен до 75 MP! Но из темноты шагает... ` + scenes.battle.text;
+    scenes.battle.text = `📜 Прекрасно! Твой максимальный запас маны увеличен! Но из темноты шагает... ` + scenes.battle.text;
     scenes.battle.bg = "url('cave_deep.jpg')";
     changeScene("battle");
     updateUI("Максимальный запас маны увеличен на +25!");
@@ -179,26 +187,33 @@ function ambushMonster(currentBg) {
     updateUI("💥 ТАКТИЧЕСКИЙ ХОД! Вы нанесли Монстру 40 урона со спины из засады! Твой ход.");
 }
 
-// ПОЧИНЕНО: Пароль теперь просто вешает щит и НЕ вызывает мгновенную атаку босса
 function checkPassword() {
     gameState.player.hasShield = true;
-    updateUI("🛡️ ВЫЗОВ ЩИТА! Вокруг тебя возник сверкающий защитный барьер! Твой ход продолжается, выбери тип атаки!");
+    updateUI("🛡️ ВЫЗОВ ЩИТА! Вокруг тебя возник барьер! Твой ход продолжается, нанеси удар!");
 }
 
 function regenerateMana() {
     gameState.player.mp = Math.min(gameState.player.maxMp, gameState.player.mp + 5);
 }
 
+// ИЗМЕНЕНО: Добавлен 10% шанс промаха мечом
 function attackMonster() {
+    if (Math.random() < 0.10) { // 10% шанс промахнуться
+        updateUI("💨 Промах! Ты взмахнул мечом, но Монстр уклонился! Твой ход потерян. (+5 MP за попытку)");
+        regenerateMana();
+        monsterCounterAttack();
+        return;
+    }
+
     let damageToMonster = Math.floor(Math.random() * 16) + 15;
     if (Math.random() < 0.15) {
         damageToMonster *= 2;
-        updateUI(`🔥 КРИТ! Меч рассекает броню монстра на ${damageToMonster} урона! (+5 MP восстановлено)`);
+        updateUI(`🔥 КРИТ! Меч наносит ${damageToMonster} урона! (+5 MP восстановлено)`);
     } else {
         updateUI(`Ты атакуешь монстра волшебным мечом на ${damageToMonster} урона. (+5 MP восстановлено)`);
     }
     gameState.monster.hp -= damageToMonster;
-    regenerateMana(); // Пассивная регенерация маны!
+    regenerateMana();
 
     if (gameState.monster.hp <= 0) {
         gameState.monster.hp = 0;
@@ -212,7 +227,7 @@ function punchMonster() {
     let punchDamage = Math.floor(Math.random() * 4) + 4;
     gameState.monster.hp -= punchDamage;
     updateUI(`👊 Ты бьешь монстра рукой на ${punchDamage} урона. (+5 MP восстановлено)`);
-    regenerateMana(); // Пассивная регенерация маны!
+    regenerateMana();
     
     if (gameState.monster.hp <= 0) {
         gameState.monster.hp = 0;
@@ -222,15 +237,19 @@ function punchMonster() {
     }
 }
 
+// ИЗМЕНЕНО: Вернули обратно 20% шанс промаха магии
 function castMagic() {
     gameState.player.mp -= 20;
-    if (Math.random() > 0.25) {
-        let magicDamage = 45;
-        gameState.monster.hp -= magicDamage;
-        updateUI(`🔮 БУМ! Огненный Шар взрывается на монстре! Нанесено ${magicDamage} урона.`);
-    } else {
-        updateUI(`💨 Промах! Твой Огненный Шар улетел в стену!`);
+
+    if (Math.random() < 0.20) { // 20% шанс промахнуться
+        updateUI("💨 Промах! Твой Огненный Шар пролетел мимо цели и врезался в стену!");
+        monsterCounterAttack();
+        return;
     }
+
+    let magicDamage = 40;
+    gameState.monster.hp -= magicDamage;
+    updateUI(`🔮 БУМ! Огненный Шар наносит стопроцентные ${magicDamage} урона!`);
     
     if (gameState.monster.hp <= 0) {
         gameState.monster.hp = 0;
@@ -261,22 +280,21 @@ function monsterCounterAttack() {
     setTimeout(() => {
         if (gameState.monster.hp <= 0) return;
         
-        // ПРОВЕРКА ПЛАЩА СКРЫТНОСТИ (25% шанс уклонения, если игрок выбрал побег в начале)
-        if (hasItem("Плащ скрытности") && Math.random() < 0.25) {
-            scenes.battle.text = `⚠️ БИТВА! У Монстра осталось [${gameState.monster.hp} HP]. Он яростно заносит лапу!`;
-            updateUI(`💨 Уклонение! Благодаря Плащу скрытности ты растворился в воздухе и увернулся от атаки! Получено 0 урона.`);
-            return;
+        // ИЗМЕНЕНО: Добавлен 10% шанс промаха монстра!
+        if (Math.random() < 0.10) { 
+            scenes.battle.text = `⚠️ БИТВА! У Монстра осталось [${gameState.monster.hp} HP]. Он рычит!`;
+            updateUI("💨 Монстр промахнулся! Его огромная когтистая лапа пронеслась в миллиметре от твоего лица! Твой ход!");
+            return; // Урон не наносится, щит НЕ ломается, ход возвращается тебе!
         }
 
-        // ПРОВЕРКА ИСПРАВЛЕННОГО МАГИЧЕСКОГО ЩИТА
         if (gameState.player.hasShield) {
-            gameState.player.hasShield = false; // Ломаем щит
-            scenes.battle.text = `⚠️ БИТВА! У Монстра осталось [${gameState.monster.hp} HP]. Он яростно заносит лапу!`;
-            updateUI(`🛡️ ЩИТ СРАБОТАЛ! Магический барьер полностью поглотил удар! Получено 0 урона. Щит разрушен!`);
+            gameState.player.hasShield = false; 
+            scenes.battle.text = `⚠️ БИТВА! У Монстра осталось [${gameState.monster.hp} HP]. Он заносит лапу!`;
+            updateUI(`🛡️ ЩИТ ПОГЛОТИЛ УДАР! Вы получили 0 урона. Щит разрушен! Твой ход!`);
             return; 
         }
         
-        let monsterDamage = Math.floor(Math.random() * 15) + 15; // Сбалансированный урон 15-30
+        let monsterDamage = Math.floor(Math.random() * 11) + 15; 
         gameState.player.hp -= monsterDamage;
         triggerBloodFlash();
         
@@ -284,7 +302,7 @@ function monsterCounterAttack() {
             gameState.player.hp = 0;
             changeScene("gameover");
         } else {
-            scenes.battle.text = `⚠️ БИТВА! У Монстра осталось [${gameState.monster.hp} HP]. Он яростно заносит лапу!`;
+            scenes.battle.text = `⚠️ БИТВА! У Монстра осталось [${gameState.monster.hp} HP]. Он заносит лапу!`;
             updateUI(`💥 Мутировавший Монстр бьет тебя на ${monsterDamage} урона! Твой ход.`);
         }
     }, 600);
